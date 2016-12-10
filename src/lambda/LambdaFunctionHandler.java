@@ -1,7 +1,6 @@
 package lambda;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
@@ -12,13 +11,8 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.S3Event;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.event.S3EventNotification.S3BucketEntity;
-import com.amazonaws.services.s3.event.S3EventNotification.S3Entity;
 import com.amazonaws.services.s3.event.S3EventNotification.S3EventNotificationRecord;
-import com.amazonaws.services.s3.event.S3EventNotification.S3ObjectEntity;
 import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 
 public class LambdaFunctionHandler implements RequestHandler<S3Event, String> {
@@ -29,37 +23,17 @@ public class LambdaFunctionHandler implements RequestHandler<S3Event, String> {
 		try {
 			final List<S3EventNotificationRecord> records = input.getRecords();
 			for (final S3EventNotificationRecord record : records) {
-				this.printDetails(logger, record);
+				final S3Data data = new S3Data(record);
+				data.setContents(this.readS3Contents(logger, data.getBucketName(), data.getKey()));
+				data.printData(logger);
+				final AmazonS3 s3Client = new AmazonS3Client();
+				this.copyContentsToFile(logger, s3Client, data.getBucketName(), data.getKey(), data.getContents());
+				this.deleteFile(logger, s3Client, data.getBucketName(), data.getKey());
 			}
 		} catch (Exception e) {
 			logger.log(e.toString());
 		}
 		return "done";
-	}
-
-	private void printDetails(final LambdaLogger logger, final S3EventNotificationRecord record) throws Exception {
-
-		final String region = record.getAwsRegion();
-		final String eventName = record.getEventName();
-		final String eventSource = record.getEventSource();
-
-		final S3Entity entity = record.getS3();
-		final S3ObjectEntity object = entity.getObject();
-		final String key = object.getKey();
-		final Long size = object.getSizeAsLong();
-
-		final S3BucketEntity bucket = entity.getBucket();
-		final String bucketName = bucket.getName();
-
-		final String contents = this.readS3Contents(logger, bucketName, key);
-
-		logger.log("Region:\t" + region);
-		logger.log("EventName:\t" + eventName);
-		logger.log("EventSource:\t" + eventSource);
-		logger.log("Key:\t" + key);
-		logger.log("Size:\t" + size);
-		logger.log("Bucket:\t" + bucketName);
-		logger.log("Contents:\t" + contents);
 	}
 
 	private void copyContentsToFile(final LambdaLogger logger,
@@ -71,6 +45,7 @@ public class LambdaFunctionHandler implements RequestHandler<S3Event, String> {
 		try {
 			final String newFileName = key.replace(".dg", ".copy");
 			s3Client.putObject(bucketName, newFileName, contents);
+			logger.log("File contents copied to: "+newFileName);
 		} catch (Exception e) {
 			logger.log(e.toString());
 			throw e;
@@ -84,6 +59,7 @@ public class LambdaFunctionHandler implements RequestHandler<S3Event, String> {
 		
 		try {
 			s3Client.deleteObject(bucketName, key);
+			logger.log("File deleted: "+key);
 		} catch (Exception e) {
 			logger.log(e.toString());
 			throw e;
