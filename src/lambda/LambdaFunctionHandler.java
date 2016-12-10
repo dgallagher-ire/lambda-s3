@@ -76,6 +76,20 @@ public class LambdaFunctionHandler implements RequestHandler<S3Event, String> {
 			throw e;
 		}
 	}
+	
+	private void deleteFile(final LambdaLogger logger,
+			final AmazonS3 s3Client,
+			final String bucketName,
+			final String key) throws Exception {
+		
+		try {
+			s3Client.deleteObject(bucketName, key);
+		} catch (Exception e) {
+			logger.log(e.toString());
+			throw e;
+		}
+	}
+	
 
 	private String readS3Contents(final LambdaLogger logger, final String bucketName, final String key)
 			throws Exception {
