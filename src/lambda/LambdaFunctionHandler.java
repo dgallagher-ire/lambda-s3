@@ -1,6 +1,7 @@
 package lambda;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
@@ -16,6 +17,8 @@ import com.amazonaws.services.s3.event.S3EventNotification.S3Entity;
 import com.amazonaws.services.s3.event.S3EventNotification.S3EventNotificationRecord;
 import com.amazonaws.services.s3.event.S3EventNotification.S3ObjectEntity;
 import com.amazonaws.services.s3.model.GetObjectRequest;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 
 public class LambdaFunctionHandler implements RequestHandler<S3Event, String> {
@@ -59,6 +62,21 @@ public class LambdaFunctionHandler implements RequestHandler<S3Event, String> {
 		logger.log("Contents:\t" + contents);
 	}
 
+	private void copyContentsToFile(final LambdaLogger logger,
+			final AmazonS3 s3Client,
+			final String bucketName,
+			final String key,
+			final String contents) throws Exception {
+		
+		try {
+			final String newFileName = key.replace(".dg", ".copy");
+			s3Client.putObject(bucketName, newFileName, contents);
+		} catch (Exception e) {
+			logger.log(e.toString());
+			throw e;
+		}
+	}
+
 	private String readS3Contents(final LambdaLogger logger, final String bucketName, final String key)
 			throws Exception {
 
@@ -72,14 +90,14 @@ public class LambdaFunctionHandler implements RequestHandler<S3Event, String> {
 			final BufferedReader reader = new BufferedReader(inReader);
 			final StringBuilder sb = new StringBuilder();
 			String line;
-	        while (true) {
-	            line = reader.readLine();
-	            if (line == null){
-	            	break;
-	            }
-	            sb.append(line).append("\r\n");
-	        }
-	        return sb.toString();
+			while (true) {
+				line = reader.readLine();
+				if (line == null) {
+					break;
+				}
+				sb.append(line).append("\r\n");
+			}
+			return sb.toString();
 		} catch (Exception e) {
 			logger.log(e.toString());
 			throw e;
