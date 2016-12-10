@@ -1,0 +1,5 @@
+#Lambda Function Project Metadata
+#Fri Dec 09 19:30:15 GMT 2016
+lastDeploymentFunctionName=S3LambdaTest
+lastDeploymentBucketName=dgallagher-bucket
+lastDeploymentEndpoint=https\://lambda.eu-west-1.amazonaws.com/
